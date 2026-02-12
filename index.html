@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live-Wetter Disneyland Paris</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
+      background: #1e1e1e;
+      background-size: cover;
+      background-position: center;
+      transition: background-image 0.5s ease-in-out;
+    }
+    header {
+      background-color: rgba(0,0,0,0.6);
+      padding: 2em;
+      text-align: center;
+    }
+    h1 {
+      font-size: 2em;
+      margin: 0;
+      color: #fff;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+    }
+    #forecast {
+      background: rgba(0,0,0,0.6);
+      margin: 2em auto;
+      padding: 1.5em;
+      max-width: 800px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1em;
+    }
+    th, td {
+      padding: 0.75em;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      cursor: pointer;
+    }
+    th {
+      background-color: rgba(255,255,255,0.1);
+      cursor: default;
+    }
+    tr:hover td {
+      background-color: rgba(255,255,255,0.1);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Live-Wettervorhersage für Disneyland Paris</h1>
+</header>
+
+<div id="forecast">
+  <p>Lade Wetterdaten...</p>
+</div>
+
+<script>
+  const lat = 48.8726, lon = 2.7767;
+  const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+               + `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode`
+               + `&forecast_days=16&timezone=Europe/Berlin`;
+
+  function setBackground(code) {
+    let file = 'sunny.jpg';
+    if (code === 0) file = 'sunny.jpg';
+    else if (code === 1 || code === 2) file = 'partly_cloudy.jpg';
+    else if (code === 3) file = 'cloudy.jpg';
+    else if (code >= 51 && code <= 67) file = 'rain.jpg';
+    else if (code >= 71 && code <= 77) file = 'snow.jpg';
+    else if (code >= 80 && code <= 82) file = 'showers.jpg';
+    else if (code >= 85 && code <= 86) file = 'snow_showers.jpg';
+    else if (code >= 95) file = 'thunderstorm.jpg';
+    document.body.style.backgroundImage = `url('img/${file}')`;
+  }
+
+  fetch(apiUrl)
+    .then(response => response.json())
+    .then(data => {
+      const daily = data.daily;
+      if (!daily) {
+        document.getElementById('forecast').innerText = "Keine Wetterdaten gefunden.";
+        return;
+      }
+
+      const dates = daily.time;
+      let html = "<table><thead><tr>"
+               + "<th>Datum</th><th>Wetter</th><th>Max °C</th><th>Min °C</th><th>Niederschlag</th>"
+               + "</tr></thead><tbody>";
+
+      for (let i = 0; i < dates.length; i++) {
+        const date = dates[i];
+        const code = daily.weathercode[i];
+        let weatherText;
+        if (code === 0) weatherText = "Sonnig";
+        else if (code === 1 || code === 2) weatherText = "Leicht bewölkt";
+        else if (code === 3) weatherText = "Stark bewölkt";
+        else if (code >= 51 && code <= 67) weatherText = "Regen";
+        else if (code >= 71 && code <= 77) weatherText = "Schnee";
+        else if (code >= 80 && code <= 82) weatherText = "Regenschauer";
+        else if (code >= 85 && code <= 86) weatherText = "Schneeschauer";
+        else if (code >= 95) weatherText = "Gewitter";
+        else weatherText = "N/A";
+
+        const options = { weekday: 'short', day: 'numeric', month: 'long' };
+        const dateObj = new Date(date);
+        const dateStr = dateObj.toLocaleDateString('de-DE', options);
+        const tmax = daily.temperature_2m_max[i].toFixed(1).replace('.', ',');
+        const tmin = daily.temperature_2m_min[i].toFixed(1).replace('.', ',');
+        const precip = daily.precipitation_sum[i].toFixed(1).replace('.', ',');
+
+        html += `<tr onclick="setBackground(${code})"><td>${dateStr}</td><td>${weatherText}</td>`
+             + `<td>${tmax}</td><td>${tmin}</td><td>${precip} mm</td></tr>`;
+      }
+
+      html += "</tbody></table>";
+      document.getElementById('forecast').innerHTML = html;
+
+      // Start mit dem ersten Tag
+      setBackground(daily.weathercode[0]);
+    })
+    .catch(err => {
+      console.error("API fetch error:", err);
+      document.getElementById('forecast').innerText = "Fehler beim Laden der Wetterdaten.";
+    });
+</script>
+
+</body>
+</html>
